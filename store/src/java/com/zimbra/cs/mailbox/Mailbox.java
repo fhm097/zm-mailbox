@@ -5776,10 +5776,10 @@ public class Mailbox implements MailboxStore {
         // not encapsulated by try-with-resources because of logging
         final MailboxLock l = lockFactory.writeLock();
         try {
-            ZimbraLog.mailbox.debug(getClass().getName() + ".addMessage tries to get MailboxLock for mailbox " + getId());
+            ZimbraLog.mailbox.debug("Mailbox.addMessage tries to get MailboxLock for mailbox " + getId());
             // "addMessageInternal" method calls MailboxTRansaction and inside of it, is called lock(), if this line is not commented we should have 2 locks and that is incorrect
             //l.lock(); 
-            ZimbraLog.mailbox.debug(getClass().getName() +".addMessage gets MailboxLock for mailbox " + getId());
+            ZimbraLog.mailbox.debug("Mailbox.addMessage gets MailboxLock for mailbox " + getId());
             try {
                 Message message = addMessageInternal(l, octxt, pm, folderId, noICal, flags, tags, conversationId,
                         rcptEmail, dinfo, customData, dctxt, staged, callbackContext, dataSourceId);
@@ -5798,9 +5798,9 @@ public class Mailbox implements MailboxStore {
                 sm.quietDelete(staged);
             }
         } finally {
-            ZimbraLog.mailbox.debug(getClass().getName() +".addMessage tries to leave MailboxLock for mailbox: " + getId());
+            ZimbraLog.mailbox.debug("Mailbox.addMessage tries to leave MailboxLock for mailbox: " + getId());
             l.close();
-            ZimbraLog.mailbox.debug(getClass().getName() +".addMessage leaves MailboxLock for mailbox: " + getId());
+            ZimbraLog.mailbox.debug("Mailbox.addMessage leaves MailboxLock for mailbox: " + getId());
             ZimbraPerf.STOPWATCH_MBOX_ADD_MSG.stop(start);
         }
     }
