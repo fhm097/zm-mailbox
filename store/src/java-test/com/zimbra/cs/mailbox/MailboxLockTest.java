@@ -136,7 +136,7 @@ public class MailboxLockTest {
             holdCount--;
             Assert.assertEquals(holdCount, l1.getHoldCount());
         } finally {
-            l1.lock();
+            l1.close();
             holdCount--;
             Assert.assertEquals(holdCount, l1.getHoldCount());
             Assert.assertEquals(0, holdCount);

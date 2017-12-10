@@ -12,3 +12,6 @@ store/.pmd
 store/.ruleset
 *.iml
 out
+*.msg
+
+store/tmp/blobs/data/
