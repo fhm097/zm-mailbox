@@ -4,6 +4,7 @@ import com.zimbra.common.mailbox.MailboxLock;
 import com.zimbra.common.mailbox.MailboxLockFactory;
 import com.zimbra.common.util.ZimbraLog;
 import org.redisson.Redisson;
+import org.redisson.api.RLock;
 import org.redisson.api.RReadWriteLock;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
@@ -13,6 +14,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
     private final Config config;
     private final RedissonClient redisson;
     private RReadWriteLock readWriteLock;
+
     private final static String HOST = "redis";
     private final static String PORT = "6379";
 
@@ -20,7 +22,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
         this.mailbox = mailbox;
 
         config = new Config();
-        config.useSingleServer().setAddress(HOST + ":" + PORT);
+        config.useSingleServer().setAddress("redis://" + HOST + ":" + PORT);
         redisson = Redisson.create(config);
 
         try {

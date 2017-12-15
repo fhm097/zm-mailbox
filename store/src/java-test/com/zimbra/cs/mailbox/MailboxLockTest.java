@@ -16,18 +16,6 @@
  */
 package com.zimbra.cs.mailbox;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.zimbra.client.ZLocalMailboxLock;
 import com.zimbra.common.localconfig.LC;
 import com.zimbra.common.mailbox.MailboxLock;
@@ -38,6 +26,13 @@ import com.zimbra.cs.account.Provisioning;
 import com.zimbra.cs.mailbox.LocalMailboxLockFactory.LockFailedException;
 import com.zimbra.cs.mailbox.Mailbox.FolderNode;
 import com.zimbra.cs.service.util.ItemId;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class MailboxLockTest {
@@ -81,65 +76,66 @@ public class MailboxLockTest {
     }
 
     @Test
-    public void nestedWrite() throws ServiceException {
-        Mailbox mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
-        int holdCount = 0;
-        // at this point is no possible to call getHoldCount, we need a lock reference first
-        //Assert.assertEquals(holdCount, mbox.lock.getHoldCount());
-        final MailboxLock l1 = mbox.lock(true);
-        try {
+    public void simpleNestedWrite() throws Exception {
+        final Mailbox mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
+        try (final MailboxLock l1 = mbox.lock(true)) {
             l1.lock();
-            holdCount++;
-            Assert.assertEquals(holdCount, l1.getHoldCount());
-            Assert.assertFalse(l1.isUnlocked());
-            Assert.assertTrue(l1.isWriteLockedByCurrentThread());
+            try (final MailboxLock l2 = mbox.lock(true)) {
+                l2.lock();
+            }
+        }
+    }
+
+    @Test
+    public void simpleNestedRead() throws Exception {
+        final Mailbox mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
+        try (final MailboxLock l1 = mbox.lock(true)) {
+            l1.lock();
             try (final MailboxLock l2 = mbox.lock(false)) {
                 l2.lock();
-                holdCount++;
-                Assert.assertEquals(holdCount, l1.getHoldCount());
+            }
+        }
+    }
+
+    @Test
+    public void nestedWrite() throws ServiceException {
+        Mailbox mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
+        // at this point is no possible to call getHoldCount, we need a lock reference first
+        //Assert.assertEquals(holdCount, mbox.lock.getHoldCount());
+        try (final MailboxLock l1 = mbox.lock(true);) {
+            l1.lock();
+            Assert.assertEquals(1, l1.getHoldCount());
+            Assert.assertFalse(l1.isUnlocked());
+            Assert.assertTrue(l1.isWriteLockedByCurrentThread());
+            try (final MailboxLock l2 = mbox.lock(true)) {
+                l2.lock();
+                Assert.assertEquals(2, l1.getHoldCount());
                 try (final MailboxLock l3 = mbox.lock(true)) {
                     l3.lock();
-                    holdCount++;
-                    Assert.assertEquals(holdCount, l1.getHoldCount());
+                    Assert.assertEquals(3, l1.getHoldCount());
                     try (final MailboxLock l4 = mbox.lock(false)) {
                         l4.lock();
-                        holdCount++;
-                        Assert.assertEquals(holdCount, l1.getHoldCount());
+                        Assert.assertEquals(1, l4.getHoldCount());
                         try (final MailboxLock l5 = mbox.lock(true)) {
                             l5.lock();
-                            holdCount++;
-                            Assert.assertEquals(holdCount, l1.getHoldCount());
+                            Assert.assertEquals(4, l1.getHoldCount());
                             try (final MailboxLock l6 = mbox.lock(true)) {
                                 l6.lock();
-                                holdCount++;
-                                Assert.assertEquals(holdCount, l1.getHoldCount());
+                                Assert.assertEquals(5, l1.getHoldCount());
                                 try (final MailboxLock l7 = mbox.lock(true)) {
                                     l7.lock();
-                                    holdCount++;
-                                    Assert.assertEquals(holdCount, l1.getHoldCount());
+                                    Assert.assertEquals(6, l1.getHoldCount());
                                 }
-                                holdCount--;
-                                Assert.assertEquals(holdCount, l1.getHoldCount());
+                                Assert.assertEquals(5, l1.getHoldCount());
                             }
-                            holdCount--;
-                            Assert.assertEquals(holdCount, l1.getHoldCount());
+                            Assert.assertEquals(4, l1.getHoldCount());
                         }
-                        holdCount--;
-                        Assert.assertEquals(holdCount, l1.getHoldCount());
                     }
-                    holdCount--;
-                    Assert.assertEquals(holdCount, l1.getHoldCount());
+                    Assert.assertEquals(3, l1.getHoldCount());
                 }
-                holdCount--;
-                Assert.assertEquals(holdCount, l1.getHoldCount());
+                Assert.assertEquals(2, l1.getHoldCount());
             }
-            holdCount--;
-            Assert.assertEquals(holdCount, l1.getHoldCount());
-        } finally {
-            l1.close();
-            holdCount--;
-            Assert.assertEquals(holdCount, l1.getHoldCount());
-            Assert.assertEquals(0, holdCount);
+            Assert.assertEquals(1, l1.getHoldCount());
         }
     }
 
