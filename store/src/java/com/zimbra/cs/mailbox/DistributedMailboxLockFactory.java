@@ -21,12 +21,12 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
     public DistributedMailboxLockFactory(final Mailbox mailbox) {
         this.mailbox = mailbox;
 
-        config = new Config();
-        config.useSingleServer().setAddress("redis://" + HOST + ":" + PORT);
-        redisson = Redisson.create(config);
+        this.config = new Config();
+        this.config.useSingleServer().setAddress("redis://" + HOST + ":" + PORT);
+        this.redisson = Redisson.create(this.config);
 
         try {
-            readWriteLock = redisson.getReadWriteLock("mailbox:" + this.mailbox.getAccountId());
+            this.readWriteLock = this.redisson.getReadWriteLock("mailbox:" + this.mailbox.getAccountId());
         } catch (Exception e) {
             ZimbraLog.system.fatal("Can't instantiate Redisson server", e);
             System.exit(1);
@@ -35,12 +35,12 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
 
     @Override
     public MailboxLock readLock() {
-        return new DistributedMailboxLock(readWriteLock, false);
+        return new DistributedMailboxLock(this.readWriteLock, false);
     }
 
     @Override
     public MailboxLock writeLock() {
-        return new DistributedMailboxLock(readWriteLock, true);
+        return new DistributedMailboxLock(this.readWriteLock, true);
     }
 
     @Override
@@ -54,6 +54,6 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
 
     @Override
     public void close() {
-        redisson.shutdown();
+        this.redisson.shutdown();
     }
 }

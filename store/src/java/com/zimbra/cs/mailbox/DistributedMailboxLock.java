@@ -54,10 +54,7 @@ public class DistributedMailboxLock implements MailboxLock {
 
     @Override
     public boolean isWriteLockedByCurrentThread() {
-        if (this.write) {
-            return this.lock.isHeldByCurrentThread();
-        }
-        return false;
+        return this.readWriteLock.writeLock().isHeldByCurrentThread();
     }
 
     @Override
@@ -66,11 +63,19 @@ public class DistributedMailboxLock implements MailboxLock {
     }
 
     private boolean neverReadBeforeWrite() {
-        if (write && this.readWriteLock.readLock().isHeldByCurrentThread()) {
+        if (isCurrentThreadReading() && isNewWriteLock()) {
             final LockFailedException lfe = new LockFailedException("read lock held before write");
             ZimbraLog.mailbox.error(lfe.getMessage(), lfe);
             throw lfe;
         }
         return true;
+    }
+
+    private boolean isNewWriteLock() {
+        return write && !this.isWriteLockedByCurrentThread();
+    }
+
+    private boolean isCurrentThreadReading() {
+        return this.readWriteLock.readLock().isHeldByCurrentThread();
     }
 }
