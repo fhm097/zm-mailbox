@@ -23,7 +23,6 @@ import com.zimbra.common.service.ServiceException;
 import com.zimbra.common.util.ZimbraLog;
 import com.zimbra.cs.account.MockProvisioning;
 import com.zimbra.cs.account.Provisioning;
-import com.zimbra.cs.mailbox.LocalMailboxLockFactory.LockFailedException;
 import com.zimbra.cs.mailbox.Mailbox.FolderNode;
 import com.zimbra.cs.service.util.ItemId;
 import org.junit.Assert;
@@ -49,29 +48,16 @@ public class MailboxLockTest {
         MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
     }
 
-    @Test
+    @Test(expected = LockFailedException.class)
     public void badWriteWhileHoldingRead() throws ServiceException {
-        boolean check = false;
-        assert (check = true);
-        if (check) {
-            Mailbox mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
-            try (final MailboxLock l = mbox.lock(false)) {
-                l.lock();
+        final Mailbox mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
+        try (final MailboxLock l = mbox.lock(false)) {
+            l.lock();
             Assert.assertFalse(l.isUnlocked());
-            Assert.assertFalse(l.isWriteLockedByCurrentThread());            
-            boolean good = true;
-            try {
-                final MailboxLock l2 = mbox.lock(true);
-                    l2.lock();
-                good = false;
-            } catch (AssertionError e) {
-                //expected
+            Assert.assertFalse(l.isWriteLockedByCurrentThread());
+            try (final MailboxLock l2 = mbox.lock(true)) {
+                l2.lock();
             }
-            Assert.assertTrue(good);            
-            }
-        } else {
-            ZimbraLog.test.debug("skipped testWriteWhileHoldingRead since asserts are not enabled");
-            //without this the test times out eventually, but we want tests to be fast so skip this one
         }
     }
 

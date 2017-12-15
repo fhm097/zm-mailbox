@@ -131,8 +131,9 @@ public class LocalMailboxLockFactory implements MailboxLockFactory {
                 if (write) {
                     Boolean readLock = assertReadLocks.get();
                     if (readLock != null) {
-                        ZimbraLog.mailbox.error("read lock held before write", new Exception());
-                        assert(false);
+                        final LockFailedException lfe = new LockFailedException("read lock held before write");
+                        ZimbraLog.mailbox.error("read lock held before write", lfe);
+                        throw lfe;
                     }
                 } else {
                     assertReadLocks.set(true);
@@ -177,7 +178,7 @@ public class LocalMailboxLockFactory implements MailboxLockFactory {
                     } catch (ServiceException e) {
                         close();
                         LockFailedException lfe = new LockFailedException("lockdb");
-                        lfe.logStackTrace();
+                        logLockFailedException(lfe);
                         throw lfe;
                     }
                     return;
@@ -189,7 +190,7 @@ public class LocalMailboxLockFactory implements MailboxLockFactory {
                     // noise in the logs. Unless debug switch is enabled
                     LockFailedException e = new LockFailedException("too many waiters: " + queueLength);
                     if (DebugConfig.debugMailboxLock) {
-                        e.logStackTrace();
+                        logLockFailedException(e);
                     }
                     throw e;
                 }
@@ -206,19 +207,25 @@ public class LocalMailboxLockFactory implements MailboxLockFactory {
                     } catch (ServiceException e) {
                         close();
                         LockFailedException lfe = new LockFailedException("lockdb");
-                        lfe.logStackTrace();
+                        logLockFailedException(lfe);
                         throw lfe;
                     }
                     return;
                 }
                 LockFailedException e = new LockFailedException("timeout");
-                e.logStackTrace();
+                logLockFailedException(e);
                 throw e;
             } catch (InterruptedException e) {
                 throw new LockFailedException("interrupted", e);
             } finally {
                 assert(!isUnlocked() || debugReleaseReadLock());
             }
+        }
+
+        private void logLockFailedException(final LockFailedException ex) {
+            final StringBuilder out = new StringBuilder("Failed to lock mailbox\n");
+            zLock.printStackTrace(out);
+            ZimbraLog.mailbox.error(out, ex);
         }
 
         private boolean tryLock() throws InterruptedException {
@@ -280,21 +287,4 @@ public class LocalMailboxLockFactory implements MailboxLockFactory {
         }
     }
 
-    public class LockFailedException extends RuntimeException {
-        private static final long serialVersionUID = -6899718561860023270L;
-
-        private LockFailedException(final String message) {
-            super(message);
-        }
-
-        private LockFailedException(final String message, final Throwable cause) {
-            super(message, cause);
-        }
-
-        private void logStackTrace() {
-            StringBuilder out = new StringBuilder("Failed to lock mailbox\n");
-            zLock.printStackTrace(out);
-            ZimbraLog.mailbox.error(out, this);
-        }
-    }
 }

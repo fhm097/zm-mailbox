@@ -1,18 +1,17 @@
 package com.zimbra.cs.mailbox;
 
+import com.zimbra.common.localconfig.LC;
 import com.zimbra.common.mailbox.MailboxLock;
 import com.zimbra.common.util.ZimbraLog;
 import org.redisson.api.RLock;
 import org.redisson.api.RReadWriteLock;
 
+import java.util.concurrent.TimeUnit;
+
 public class DistributedMailboxLock implements MailboxLock {
     private final RReadWriteLock readWriteLock;
     private final boolean write;
     private final RLock lock;
-
-    //for sanity checking, we keep list of read locks. the first time caller obtains write lock they must not already own read lock
-    //states - no lock, read lock only, write lock only
-    private final ThreadLocal<Boolean> assertReadLocks = new ThreadLocal<>();
 
     public DistributedMailboxLock(final RReadWriteLock readWriteLock, final boolean write) {
         this.readWriteLock = readWriteLock;
@@ -24,18 +23,21 @@ public class DistributedMailboxLock implements MailboxLock {
     public void lock() {
         assert(neverReadBeforeWrite());
         try {
-            this.lock.lock();
-        } finally {
-            assert (!isUnlocked() || debugReleaseReadLock());
+            if (!tryLockWithTimeout()) {
+                throw new LockFailedException("Failed to acquire DistributedMailboxLock { \"lockId\": \"" + this.readWriteLock.getName() + "\" }");
+            }
+        } catch (final InterruptedException ex) {
+            throw new LockFailedException("Failed to acquire DistributedMailboxLock { \"lockId\": \"" + this.readWriteLock.getName() + "\" }", ex);
         }
+    }
+
+    private boolean tryLockWithTimeout() throws InterruptedException {
+        return this.lock.tryLock(LC.zimbra_mailbox_lock_timeout.intValue(), TimeUnit.SECONDS);
     }
 
     @Override
     public void close() {
         this.lock.unlock();
-        if (!this.write) {
-            assert(debugReleaseReadLock());
-        }
     }
 
     @Override
@@ -63,27 +65,12 @@ public class DistributedMailboxLock implements MailboxLock {
         return !this.lock.isLocked();
     }
 
-    private synchronized boolean neverReadBeforeWrite() {
-        if (this.readWriteLock.writeLock().getHoldCount() == 0) {
-            if (write) {
-                Boolean readLock = assertReadLocks.get();
-                if (readLock != null) {
-                    ZimbraLog.mailbox.error("read lock held before write", new Exception());
-                    assert (false);
-                }
-            } else {
-                assertReadLocks.set(true);
-            }
+    private boolean neverReadBeforeWrite() {
+        if (write && this.readWriteLock.readLock().isHeldByCurrentThread()) {
+            final LockFailedException lfe = new LockFailedException("read lock held before write");
+            ZimbraLog.mailbox.error(lfe.getMessage(), lfe);
+            throw lfe;
         }
         return true;
     }
-
-    private synchronized boolean debugReleaseReadLock() {
-        //remove read lock
-        if (this.readWriteLock.readLock().getHoldCount() == 0) {
-            assertReadLocks.remove();
-        }
-        return true;
-    }
-
 }
