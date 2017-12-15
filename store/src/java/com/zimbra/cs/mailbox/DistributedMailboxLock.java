@@ -2,14 +2,17 @@ package com.zimbra.cs.mailbox;
 
 import com.zimbra.common.mailbox.MailboxLock;
 import org.redisson.api.RLock;
+import org.redisson.api.RReadWriteLock;
 
 public class DistributedMailboxLock implements MailboxLock {
-    private final RLock lock;
+    private final RReadWriteLock readWriteLock;
     private final boolean write;
+    private final RLock lock;
 
-    public DistributedMailboxLock(final RLock lock, final boolean write) {
-        this.lock = lock;
+    public DistributedMailboxLock(final RReadWriteLock readWriteLock, final boolean write) {
+        this.readWriteLock = readWriteLock;
         this.write = write;
+        this.lock = this.write ? readWriteLock.writeLock() : readWriteLock.readLock();
     }
 
     @Override
@@ -24,7 +27,9 @@ public class DistributedMailboxLock implements MailboxLock {
 
     @Override
     public int getHoldCount() {
-        return this.lock.getHoldCount();
+        // eric: I feel like summing read + write lock hold count here is strange, but this is being done to
+        // match the behavior of LocalMailboxLock
+        return this.readWriteLock.readLock().getHoldCount() + this.readWriteLock.writeLock().getHoldCount();
     }
 
     @Override

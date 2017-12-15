@@ -115,21 +115,22 @@ public class MailboxLockTest {
                     Assert.assertEquals(3, l1.getHoldCount());
                     try (final MailboxLock l4 = mbox.lock(false)) {
                         l4.lock();
-                        Assert.assertEquals(1, l4.getHoldCount());
+                        Assert.assertEquals(4, l4.getHoldCount());
                         try (final MailboxLock l5 = mbox.lock(true)) {
                             l5.lock();
-                            Assert.assertEquals(4, l1.getHoldCount());
+                            Assert.assertEquals(5, l1.getHoldCount());
                             try (final MailboxLock l6 = mbox.lock(true)) {
                                 l6.lock();
-                                Assert.assertEquals(5, l1.getHoldCount());
+                                Assert.assertEquals(6, l1.getHoldCount());
                                 try (final MailboxLock l7 = mbox.lock(true)) {
                                     l7.lock();
-                                    Assert.assertEquals(6, l1.getHoldCount());
+                                    Assert.assertEquals(7, l1.getHoldCount());
                                 }
-                                Assert.assertEquals(5, l1.getHoldCount());
+                                Assert.assertEquals(6, l1.getHoldCount());
                             }
-                            Assert.assertEquals(4, l1.getHoldCount());
+                            Assert.assertEquals(5, l1.getHoldCount());
                         }
+                        Assert.assertEquals(4, l1.getHoldCount());
                     }
                     Assert.assertEquals(3, l1.getHoldCount());
                 }

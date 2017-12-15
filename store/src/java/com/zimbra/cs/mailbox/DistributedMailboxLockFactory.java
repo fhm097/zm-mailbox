@@ -35,12 +35,12 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
 
     @Override
     public MailboxLock readLock() {
-        return new DistributedMailboxLock(readWriteLock.readLock(), false);
+        return new DistributedMailboxLock(readWriteLock, false);
     }
 
     @Override
     public MailboxLock writeLock() {
-        return new DistributedMailboxLock(readWriteLock.writeLock(), true);
+        return new DistributedMailboxLock(readWriteLock, true);
     }
 
     @Override
