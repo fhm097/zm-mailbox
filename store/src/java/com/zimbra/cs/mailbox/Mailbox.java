@@ -8152,7 +8152,7 @@ public class Mailbox implements MailboxStore {
     throws ServiceException {
         // Lock this mailbox to make sure that no one modifies the items we're about to delete.
         try (final MailboxLock l = lockFactory.writeLock()) {
-            l.lock();
+          
             DeleteItem redoRecorder = new DeleteItem(mId, MailItem.Type.UNKNOWN, tcon);
             try (final MailboxTransaction t = new MailboxTransaction("delete", octxt, l, redoRecorder)) {
                 setOperationTargetConstraint(tcon);
