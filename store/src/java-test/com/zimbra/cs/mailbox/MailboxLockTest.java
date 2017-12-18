@@ -66,8 +66,12 @@ public class MailboxLockTest {
         final Mailbox mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
         try (final MailboxLock l1 = mbox.lock(true)) {
             l1.lock();
+            Assert.assertFalse(l1.isUnlocked());
+            Assert.assertEquals(1, l1.getHoldCount());
             try (final MailboxLock l2 = mbox.lock(true)) {
                 l2.lock();
+                Assert.assertFalse(l2.isUnlocked());
+                Assert.assertEquals(2, l2.getHoldCount());
             }
         }
     }
@@ -77,8 +81,12 @@ public class MailboxLockTest {
         final Mailbox mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
         try (final MailboxLock l1 = mbox.lock(true)) {
             l1.lock();
+            Assert.assertFalse(l1.isUnlocked());
+            Assert.assertEquals(1, l1.getHoldCount());
             try (final MailboxLock l2 = mbox.lock(false)) {
                 l2.lock();
+                Assert.assertFalse(l2.isUnlocked());
+                Assert.assertEquals(2, l2.getHoldCount());
             }
         }
     }
