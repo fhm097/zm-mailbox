@@ -149,7 +149,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
 
         @Override
         public boolean isUnlocked() {
-            return !this.lock.isLocked();
+            return this.getHoldCount() == 0;
         }
 
         private boolean neverReadBeforeWrite() {
