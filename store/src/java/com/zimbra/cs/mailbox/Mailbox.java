@@ -2325,7 +2325,6 @@ public class Mailbox implements MailboxStore {
         SpoolingCache<MailboxBlob.MailboxBlobInfo> blobs = null;
 
         try (final MailboxLock l = lockFactory.writeLock()) {
-            l.lock();
             // first, throw the mailbox into maintenance mode
             //   (so anyone else with a cached reference to the Mailbox can't use it)
             MailboxMaintenance maint = null;
