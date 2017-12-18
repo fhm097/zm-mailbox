@@ -200,7 +200,7 @@ public class MailboxLockTest {
         }
     }
 
-    //@Test
+    @Test
     public void promote() {
         final Thread readThread = new Thread("MailboxLockTest-Reader") {
             @Override
@@ -208,8 +208,8 @@ public class MailboxLockTest {
                 Mailbox mbox;
                 List<MailboxLock> listLocks = new ArrayList<>();
                 MailboxLock l = null;
+                int lockCount = 10;
                 try {
-                    int lockCount = 10;
                     mbox = MailboxManager.getInstance().getMailboxByAccountId(MockProvisioning.DEFAULT_ACCOUNT_ID);
                     //here's the interleaving we are explicitly exercising in this test
                     //1. writer - mbox.lock(write)
@@ -236,6 +236,10 @@ public class MailboxLockTest {
                 } catch (ServiceException e) {
                     e.printStackTrace();
                     Assert.fail();
+                } finally {
+                    for (int i = 0; i < listLocks.size(); i++) {
+                        listLocks.get(i).close();
+                    }
                 }
             }
         };
