@@ -125,7 +125,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
 
         @Override
         public void close() {
-            if (this.lock.isHeldByCurrentThread() && lock.isLocked()){
+            if (this.lock.isHeldByCurrentThread()){
                 this.lock.unlock();
             }
         }
