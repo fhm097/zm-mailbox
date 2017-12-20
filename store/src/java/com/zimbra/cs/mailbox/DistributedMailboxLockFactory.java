@@ -99,7 +99,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
                     return;
                 }
 
-                int queueLength = waiters.size();
+                int queueLength = getQueueLength();
                 if (waiters.size() >= LC.zimbra_mailbox_lock_max_waiting_threads.intValue()) {
                     throw new LockFailedException("too many waiters: " + queueLength);
                 }
