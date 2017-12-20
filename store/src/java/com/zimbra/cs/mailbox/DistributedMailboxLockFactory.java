@@ -99,7 +99,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
                     return;
                 }
 
-                int queueLength = getQueueLength();
+                int queueLength = waiters.size();
                 if (waiters.size() >= LC.zimbra_mailbox_lock_max_waiting_threads.intValue()) {
                     throw new LockFailedException("too many waiters: " + queueLength);
                 }
@@ -125,7 +125,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
 
         @Override
         public void close() {
-            if (this.lock.isHeldByCurrentThread() && lock.isLocked()){
+            if (this.lock.isHeldByCurrentThread()){
                 this.lock.unlock();
             }
         }
@@ -168,10 +168,5 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
         private boolean isCurrentThreadReading() {
             return this.readWriteLock.readLock().isHeldByCurrentThread();
         }
-
-		@Override
-		public boolean isHeldByCurrentThread() {
-			return this.lock.isHeldByCurrentThread();
-		}
     }
 }

@@ -9924,8 +9924,7 @@ public class Mailbox implements MailboxStore {
             assert recorder == null || write;
             // @spoon16 I don't think this assertion is valid if the lock is distributed
             // assert !Thread.holdsLock(this) : "use MailboxLock";
-			if (!lock.isHeldByCurrentThread())
-				this.lock.lock();
+            this.lock.lock();
             if (!write && requiresWriteLock()) {
                 //another call must have purged the cache.
                 //the lock.lock() call should have resulted in write lock already
