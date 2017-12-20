@@ -285,6 +285,12 @@ public class LocalMailboxLockFactory implements MailboxLockFactory {
                 lock();
             }
         }
+
+		@Override
+		public boolean isHeldByCurrentThread() {
+			// TODO Auto-generated method stub
+			return false;
+		}
     }
 
 }

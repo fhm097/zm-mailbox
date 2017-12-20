@@ -88,4 +88,10 @@ public class ZLocalMailboxLock implements MailboxLock {
             super(message, cause);
         }
     }
+
+	@Override
+	public boolean isHeldByCurrentThread() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 }

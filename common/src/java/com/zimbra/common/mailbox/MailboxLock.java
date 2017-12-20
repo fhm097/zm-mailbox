@@ -12,4 +12,6 @@ public interface MailboxLock extends AutoCloseable {
     void lock();
 
     void close();
+    
+    boolean isHeldByCurrentThread();
 }
