@@ -81,8 +81,8 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
 
     public class DistributedMailboxLock implements MailboxLock {
         private final RReadWriteLock readWriteLock;
-        private final boolean write;
-        private final RLock lock;
+        private boolean write;
+        private RLock lock;
         private int counterCalls;
 
 
@@ -174,6 +174,11 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
 
         private boolean isCurrentThreadReading() {
             return this.readWriteLock.readLock().isHeldByCurrentThread();
+        }
+
+        public void changeToWriteLock() {
+            this.write = true;
+            this.lock = readWriteLock.writeLock();
         }
     }
 }
