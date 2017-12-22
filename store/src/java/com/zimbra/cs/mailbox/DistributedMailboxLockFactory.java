@@ -83,7 +83,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
         private final RReadWriteLock readWriteLock;
         private final boolean write;
         private final RLock lock;
-        private int counterCalls;
+		private int counterCalls;
 
 
         public DistributedMailboxLock(final RReadWriteLock readWriteLock, final boolean write) {
