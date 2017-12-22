@@ -83,7 +83,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
         private final RReadWriteLock readWriteLock;
         private final boolean write;
         private final RLock lock;
-		private int counterCalls;
+        private int counterCalls;
 
 
         public DistributedMailboxLock(final RReadWriteLock readWriteLock, final boolean write) {
@@ -97,7 +97,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
             assert (neverReadBeforeWrite());
             try {
                 if (tryLock()) {
-					counterCalls++;
+                    counterCalls++;
                     return;
                 }
 
@@ -112,7 +112,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
                 if (!tryLockWithTimeout()) {
                     throw new LockFailedException("Failed to acquire DistributedMailboxLock { \"lockId\": \"" + this.readWriteLock.getName() + "\" }");
                 }
-				counterCalls++;
+                counterCalls++;
             } catch (final InterruptedException ex) {
                 throw new LockFailedException("Failed to acquire DistributedMailboxLock { \"lockId\": \"" + this.readWriteLock.getName() + "\" }", ex);
             }
@@ -130,10 +130,10 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
         public void close() {
             if (this.lock.isHeldByCurrentThread()){
                 this.lock.unlock();
-				if (counterCalls > 1) {
-					counterCalls--;
-					this.close();
-				}
+                if (counterCalls > 1) {
+                    counterCalls--;
+                    this.close();
+                }
             }
         }
 
