@@ -191,11 +191,12 @@ public final class MailboxTestUtil {
      */
     public static void clearData(String zimbraServerDir) throws Exception {
         HSQLDB.clearDatabase(zimbraServerDir);
-        MailboxManager.getInstance().clearCache();
-        MailboxIndex.shutdown();
-        File index = new File("build/test/index");
-        if (index.isDirectory()) {
-            deleteDirContents(index);
+        MailboxManager.getInstance().cacheManager.clearCache();
+        try {
+            IndexStore.getFactory().destroy();
+            cleanupAllIndexStores();
+        } catch (SolrException ex) {
+            //ignore. We are deleting the folders anyway
         }
         StoreManager sm = StoreManager.getInstance();
         if (sm instanceof MockStoreManager) {
