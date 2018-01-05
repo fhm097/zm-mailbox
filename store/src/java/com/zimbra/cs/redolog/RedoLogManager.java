@@ -36,6 +36,7 @@ import com.zimbra.common.util.ZimbraLog;
 
 import com.zimbra.cs.db.Db;
 import com.zimbra.cs.mailbox.MailServiceException;
+import com.zimbra.cs.redolog.logger.DbLogWriter;
 import com.zimbra.cs.redolog.logger.FileLogReader;
 import com.zimbra.cs.redolog.logger.FileLogWriter;
 import com.zimbra.cs.redolog.logger.LogWriter;
@@ -169,6 +170,10 @@ public class RedoLogManager {
         return new FileLogWriter(redoMgr, logfile, fsyncIntervalMS);
     }
 
+    public LogWriter createLogWriter(RedoLogManager redoMgr) {
+        return new DbLogWriter(redoMgr);
+    }
+
     private void setInCrashRecovery(boolean b) {
         synchronized (mInCrashRecoveryGuard) {
             mInCrashRecovery = b;
@@ -210,7 +215,7 @@ public class RedoLogManager {
         }
 
         long fsyncInterval = RedoConfig.redoLogFsyncIntervalMS();
-        mLogWriter = createLogWriter(this, mLogFile, fsyncInterval);
+        mLogWriter = createLogWriter(this);
 
         ArrayList<RedoableOp> postStartupRecoveryOps = new ArrayList<RedoableOp>(100);
         int numRecoveredOps = 0;
@@ -243,7 +248,7 @@ public class RedoLogManager {
             mLogWriter.open();
             mRolloverMgr.initSequence(mLogWriter.getSequence());
             mInitialLogSize = mLogWriter.getSize();
-        } catch (IOException e) {
+        } catch (Exception e) {
             ZimbraLog.redolog.fatal("Unable to open redo log");
             signalFatalError(e);
         }
@@ -410,7 +415,7 @@ public class RedoLogManager {
         }
     }
 
-    public void flush() throws IOException {
+    public void flush() throws Exception {
         if (mEnabled)
             mLogWriter.flush();
     }
@@ -552,7 +557,7 @@ public class RedoLogManager {
                     result = age >= mLogRolloverMinAgeMillis;
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             ZimbraLog.redolog.fatal("Unable to get redo log size");
             signalFatalError(e);
         }
@@ -612,6 +617,9 @@ public class RedoLogManager {
                 ZimbraLog.redolog.info("Redo log rollover took " + elapsed + "ms");
             }
         } catch (IOException e) {
+            ZimbraLog.redolog.error("IOException during redo log rollover");
+            signalFatalError(e);
+        } catch (Exception e) {
             ZimbraLog.redolog.error("IOException during redo log rollover");
             signalFatalError(e);
         } finally {

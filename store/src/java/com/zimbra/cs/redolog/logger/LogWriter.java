@@ -40,15 +40,15 @@ public interface LogWriter {
 
 	/**
 	 * Opens the log.
-	 * @throws IOException
+	 * @throws Exception
 	 */
-	public void open() throws IOException;
+	public void open() throws Exception;
 
 	/**
 	 * Closes the log.
-	 * @throws IOException
+	 * @throws Exception
 	 */
-	public void close() throws IOException;
+	public void close() throws Exception;
 
 	/**
 	 * Logs an entry.
@@ -60,9 +60,9 @@ public interface LogWriter {
 	 *                    has been written to disk safely, or has been
 	 *                    securely stored in an equivalent manner depending
 	 *                    on the logger implementation
-	 * @throws IOException
+	 * @throws Exception
 	 */
-	public void log(RedoableOp op, InputStream data, boolean synchronous) throws IOException;
+	public void log(RedoableOp op, InputStream data, boolean synchronous) throws Exception;
     
     /**
      * Make sure all writes are committed to disk, or whatever the log
@@ -70,15 +70,16 @@ public interface LogWriter {
      * make sure the commit record is on disk, because fsync of commit record
      * is deferred until the logging of the next redo record for performance
      * reasons.
-     * @throws IOException
+     * @throws Exception
      */
-    public void flush() throws IOException;
+    public void flush() throws Exception;
 
 	/**
 	 * Returns the current size of the log.  Used for rollover tracking.
 	 * @return
+	 * @throws Exception
 	 */
-	public long getSize();
+	public long getSize() throws Exception;
 
 	/**
 	 * Returns the time of the log creation.
@@ -95,9 +96,9 @@ public interface LogWriter {
 	/**
 	 * Whether the current log is empty, i.e. has no entries logged.
 	 * @return
-	 * @throws IOException
+	 * @throws Exception
 	 */
-	public boolean isEmpty() throws IOException;
+	public boolean isEmpty() throws Exception;
 
 	/**
 	 * Whether the underlying logfile exists.
@@ -139,7 +140,6 @@ public interface LogWriter {
      * Returns the sequence number of redolog.  Only file-based log writers
      * will return a meaningful number.  Others return 0.
      * @return
-     * @throws IOException
      */
     public long getSequence();
 }
