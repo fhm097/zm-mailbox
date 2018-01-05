@@ -41,15 +41,24 @@ public class DbLogWriterTest {
     public void openLogClose() throws Exception {
         logWriter.open();
         Assert.assertTrue("Connection is open successfully", logWriter.isOpen());
+        Assert.assertTrue("Table is empty after open the connection first time", logWriter.isEmpty());
 
         RedoableOp op = EasyMock.createMockBuilder(RedoableOp.class)
                 .withConstructor(MailboxOperation.Preview)
                 .createMock();
 
         logWriter.log(op, new ByteArrayInputStream("some bytes".getBytes()), false);
-        // The file is the size of the header plus the op bytes (10)
-        Assert.assertEquals("file size incorrect.",
-                /*FileHeader.HEADER_LEN +*/ 10, logWriter.getSize());
+        Assert.assertEquals("file size incorrect.",10, logWriter.getSize());
+
+        logWriter.close();
+        Assert.assertTrue("Connection was closed successfully", !logWriter.isOpen());
+
+        logWriter = new DbLogWriter(mockRedoLogManager);
+        logWriter.open();
+        Assert.assertEquals("file size incorrect.", 10, logWriter.getSize());
+
+        logWriter.log(op, new ByteArrayInputStream("some bytes".getBytes()), false);
+        Assert.assertEquals("file size incorrect.",20, logWriter.getSize());
         logWriter.close();
     }
 

@@ -110,6 +110,7 @@ public class RedoLogManager {
 
     // the actual logger
     private LogWriter mLogWriter;
+    private boolean useDbAsLogWriter = true;
 
     private Object mStatGuard;
     private long mElapsed;
@@ -215,11 +216,20 @@ public class RedoLogManager {
         }
 
         long fsyncInterval = RedoConfig.redoLogFsyncIntervalMS();
-        mLogWriter = createLogWriter(this);
+        if (useDbAsLogWriter){
+            mLogWriter = createLogWriter(this);
+        } else {
+            mLogWriter = mLogWriter = createLogWriter(this, mLogFile, fsyncInterval);
+        }
 
         ArrayList<RedoableOp> postStartupRecoveryOps = new ArrayList<RedoableOp>(100);
         int numRecoveredOps = 0;
-        if (mSupportsCrashRecovery) {
+        /*
+            TODO fix me the recovery process was temporally commented since  the storage will change from file to a DB
+            working right now to write all ops into a DB
+         */
+
+        if (false/*mSupportsCrashRecovery*/) {
             mRecoveryMode = true;
             ZimbraLog.redolog.info("Starting pre-startup crash recovery");
             // Run crash recovery.
@@ -616,11 +626,8 @@ public class RedoLogManager {
                 long elapsed = System.currentTimeMillis() - start;
                 ZimbraLog.redolog.info("Redo log rollover took " + elapsed + "ms");
             }
-        } catch (IOException e) {
-            ZimbraLog.redolog.error("IOException during redo log rollover");
-            signalFatalError(e);
         } catch (Exception e) {
-            ZimbraLog.redolog.error("IOException during redo log rollover");
+            ZimbraLog.redolog.error("Exception during redo log rollover");
             signalFatalError(e);
         } finally {
             writeLock.unlock();

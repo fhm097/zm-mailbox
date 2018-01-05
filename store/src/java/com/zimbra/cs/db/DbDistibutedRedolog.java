@@ -57,7 +57,7 @@ public final class DbDistibutedRedolog {
         ResultSet rs = null;
         long size = 0;
         try {
-            stmt = conn.prepareStatement("Select OCTET_LENGTH(op) from distributed_redolog");
+            stmt = conn.prepareStatement("Select SUM(OCTET_LENGTH(op)) from distributed_redolog;");
             rs = stmt.executeQuery();
             if (rs.next()){
                 size = rs.getLong(1);

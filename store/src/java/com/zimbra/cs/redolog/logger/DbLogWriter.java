@@ -54,15 +54,15 @@ public class DbLogWriter implements LogWriter {
     }
 
     @Override
-    public void open() throws ServiceException {
-        if (conn == null) {
+    public void open() throws Exception {
+        if (conn == null || conn.getConnection().isClosed()) {
             conn = DbPool.getConnection();
-            ZimbraLog.redolog.info("  fetching new DB connection");
+            ZimbraLog.redolog.info("fetching new DB connection");
         }
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() throws Exception {
         if (conn != null) {
             DbPool.quietClose(conn);
         }
@@ -76,7 +76,7 @@ public class DbLogWriter implements LogWriter {
             }
 
             try {
-                // Record first transaction in header.
+                //Record first transaction in header.
                 //long tstamp = op.getTimestamp();
                 //mLastOpTstamp = Math.max(tstamp, mLastOpTstamp);
                 //if (mFirstOpTstamp == 0) {
@@ -87,6 +87,7 @@ public class DbLogWriter implements LogWriter {
                 //}
 
                 DbDistibutedRedolog.log_op(conn, data);
+                conn.commit();
             } finally {
                 data.close();
             }
@@ -121,8 +122,8 @@ public class DbLogWriter implements LogWriter {
     }
 
     @Override
-    public boolean isEmpty() throws IOException {
-        return false;
+    public boolean isEmpty() throws Exception {
+        return getSize() == 0;
     }
 
     @Override
