@@ -17,20 +17,18 @@ import java.util.concurrent.TimeUnit;
 
 public class DistributedMailboxLockFactory implements MailboxLockFactory {
     private final Mailbox mailbox;
-    private final Config config;
+    
     private final RedissonClient redisson;
     private RReadWriteLock readWriteLock;
     private List<RLock> waiters;
 
-    private final static String HOST = "redis";
-    private final static String PORT = "6379";
+    
+    
 
     public DistributedMailboxLockFactory(final Mailbox mailbox) {
         this.mailbox = mailbox;
 
-        this.config = new Config();
-        this.config.useSingleServer().setAddress("redis://" + HOST + ":" + PORT);
-        this.redisson = Redisson.create(this.config);
+        this.redisson = RedissonClientHolder.getInstance().getRedissonClient();
 
         try {
             this.readWriteLock = this.redisson.getReadWriteLock("mailbox:" + this.mailbox.getAccountId());
