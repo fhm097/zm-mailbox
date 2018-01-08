@@ -3,6 +3,8 @@ package com.zimbra.cs.redolog.logger;
 import static org.junit.Assert.*;
 
 import com.zimbra.common.service.ServiceException;
+import com.zimbra.cs.db.DbDistibutedRedolog.OpType;
+import com.zimbra.cs.db.DbPool;
 import com.zimbra.cs.mailbox.MailboxOperation;
 import com.zimbra.cs.mailbox.MailboxTestUtil;
 import com.zimbra.cs.redolog.RedoLogManager;
@@ -25,6 +27,7 @@ public class DbLogWriterTest {
 
     private RedoLogManager mockRedoLogManager;
     private DbLogWriter logWriter;
+    private DbLogWriter.LogHeader hdr;
 
     @BeforeClass
     public static void init() throws Exception {
@@ -66,4 +69,38 @@ public class DbLogWriterTest {
     public void logBeforeOpen() throws Exception {
         logWriter.log(null, null, false);
     }
+
+/*
+========================================================================================================================
+============================================   TEST THE HEADER   =======================================================
+========================================================================================================================
+========================================================================================================================
+*/
+    @Test
+    public void initializingHeader() throws Exception {
+        DbLogWriter.LogHeader anExistingHdr;
+        hdr = new DbLogWriter.LogHeader();
+        DbPool.DbConnection conn = DbPool.getConnection();
+
+        Assert.assertFalse("file is open", hdr.getOpen());
+        Assert.assertEquals("file size is not 0", 0, hdr.getFileSize());
+        Assert.assertEquals("header sequence is not 0", 0, hdr.getSequence());
+        Assert.assertEquals("server id is set", "unknown", hdr.getServerId());
+        Assert.assertEquals("unexpected first op time", 0, hdr.getFirstOpTstamp());
+        Assert.assertEquals("unexpected last op time", 0, hdr.getLastOpTstamp());
+        Assert.assertEquals("unexpected create time", 0, hdr.getCreateTime());
+
+        hdr.init(conn);
+
+        // reading an existing header
+        anExistingHdr = new DbLogWriter.LogHeader("should be overwritten");
+        anExistingHdr.read(conn);
+        Assert.assertEquals("header from file should match serialized data", hdr, anExistingHdr);
+
+        // init an existing header
+        anExistingHdr = new DbLogWriter.LogHeader("should be overwritten");
+        anExistingHdr.init(conn);
+        Assert.assertEquals("header from file should match serialized data", hdr, anExistingHdr);
+    }
+
 }

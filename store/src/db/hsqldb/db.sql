@@ -209,6 +209,7 @@ CREATE TABLE current_sessions (
 
 CREATE TABLE IF NOT EXISTS distributed_redolog
 (
+  opType CHAR(2) DEFAULT 'OP',
   op BLOB NOT NULL
 );
 

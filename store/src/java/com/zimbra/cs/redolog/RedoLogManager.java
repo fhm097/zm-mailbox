@@ -110,7 +110,7 @@ public class RedoLogManager {
 
     // the actual logger
     private LogWriter mLogWriter;
-    private boolean useDbAsLogWriter = true;
+    private boolean useDbAsLogStorage = false;
 
     private Object mStatGuard;
     private long mElapsed;
@@ -216,7 +216,7 @@ public class RedoLogManager {
         }
 
         long fsyncInterval = RedoConfig.redoLogFsyncIntervalMS();
-        if (useDbAsLogWriter){
+        if (useDbAsLogStorage){
             mLogWriter = createLogWriter(this);
         } else {
             mLogWriter = mLogWriter = createLogWriter(this, mLogFile, fsyncInterval);
@@ -225,11 +225,11 @@ public class RedoLogManager {
         ArrayList<RedoableOp> postStartupRecoveryOps = new ArrayList<RedoableOp>(100);
         int numRecoveredOps = 0;
         /*
-            TODO fix me the recovery process was temporally commented since  the storage will change from file to a DB
-            working right now to write all ops into a DB
+            TODO fix me the recovery process was temporally changed we avoid this process when useDbAsLogStorage
+            since the storage will change from file to a DB Which is in process jet
+            "original if (mSupportsCrashRecovery)"
          */
-
-        if (false/*mSupportsCrashRecovery*/) {
+        if (mSupportsCrashRecovery && !useDbAsLogStorage) {
             mRecoveryMode = true;
             ZimbraLog.redolog.info("Starting pre-startup crash recovery");
             // Run crash recovery.
