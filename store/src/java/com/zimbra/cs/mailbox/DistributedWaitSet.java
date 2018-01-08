@@ -5,7 +5,7 @@ import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
 
 public class DistributedWaitSet {
-	private static RedissonClient redisson = RedissonConn.INSTANCE.getRedissonClient();;
+	private static RedissonClient redisson = RedissonClientHolder.getInstance().getRedissonClient();
 
 	public DistributedWaitSet() {
 	}

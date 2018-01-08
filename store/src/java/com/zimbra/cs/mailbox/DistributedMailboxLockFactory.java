@@ -28,7 +28,7 @@ public class DistributedMailboxLockFactory implements MailboxLockFactory {
     public DistributedMailboxLockFactory(final Mailbox mailbox) {
         this.mailbox = mailbox;
 
-        this.redisson = RedissonConn.INSTANCE.getRedissonClient();
+        this.redisson = RedissonClientHolder.getInstance().getRedissonClient();
 
         try {
             this.readWriteLock = this.redisson.getReadWriteLock("mailbox:" + this.mailbox.getAccountId());
