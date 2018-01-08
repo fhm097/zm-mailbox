@@ -25,12 +25,11 @@ public class DbLogWriter implements LogWriter {
     DbConnection conn;
     private LogHeader mHeader;
     protected RedoLogManager mRedoLogMgr;
-    // Synchronizes access to mRAF, mFileSize, mLogSeq, mFsyncSeq, mLogCount, and mFsyncCount.
-    private final Object mLock = new Object();
 
     private static String sServerId;
     private long mFirstOpTstamp;
     private long mLastOpTstamp;
+    private final String FAILED_METHOD_TEMPLATE = "Failed in %s Method";
 
     static {
         try {
@@ -47,67 +46,62 @@ public class DbLogWriter implements LogWriter {
     }
 
     @Override
-    public void open() throws Exception {
-        if (conn != null && !conn.getConnection().isClosed()) {
-            return; // already open
-        }
+    public void open() throws LogFailedException {
+        try {
+            if (conn != null && !conn.getConnection().isClosed()) {
+                return; // already open
+            }
 
-        conn = DbPool.getConnection();
-        ZimbraLog.redolog.info("fetching new DB connection");
+            conn = DbPool.getConnection();
+            ZimbraLog.redolog.info("fetching new DB connection");
+        } catch (Exception e) {
+            new LogFailedException(String.format(FAILED_METHOD_TEMPLATE, "open"), e);
+        }
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() throws LogFailedException {
         if (conn != null) {
             DbPool.quietClose(conn);
         }
     }
 
     @Override
-    public void log(RedoableOp op, InputStream data, boolean synchronous) throws Exception {
-        synchronized (mLock) {
-            if (conn == null) {
-                throw new Exception("Redolog connection closed");
-            }
+    public synchronized void log(RedoableOp op, InputStream data, boolean synchronous) throws LogFailedException {
+        if (conn == null) {
+            throw new LogFailedException("Redolog connection closed");
+        }
 
+        try {
+            DbDistibutedRedolog.logOp(conn, OpType.OPERATION, data);
+            conn.commit();
+        } catch (ServiceException e) {
+            throw new LogFailedException(String.format(FAILED_METHOD_TEMPLATE, "log"), e);
+        } finally {
             try {
-                //Record first transaction in header.
-                //long tstamp = op.getTimestamp();
-                //mLastOpTstamp = Math.max(tstamp, mLastOpTstamp);
-                //if (mFirstOpTstamp == 0) {
-                //    mFirstOpTstamp = tstamp;
-                //    mHeader.setFirstOpTstamp(mFirstOpTstamp);
-                //    mHeader.setLastOpTstamp(mLastOpTstamp);
-                //    mHeader.serialize(mRAF);
-                //}
-
-                DbDistibutedRedolog.logOp(conn, OpType.OPERATION, data);
-                conn.commit();
-            } finally {
-                try {
-                    data.close();
-                } catch (IOException e) {
-                    ZimbraLog.redolog.error("Failed to close Op's data Stream", e);
-                }
+                data.close();
+            } catch (IOException e) {
+                ZimbraLog.redolog.error("Failed to close Op's data Stream", e);
             }
         }
     }
 
     @Override
-    public void flush() throws IOException {
+    public void flush() throws LogFailedException {
 
     }
 
     @Override
-    public long getSize() throws Exception {
-        long size;
-        synchronized (mLock) {
-            if (conn == null) {
-                throw new Exception("Redolog connection closed");
-            }
-            size = DbDistibutedRedolog.getAllOpSize(conn);
+    public synchronized long getSize() throws LogFailedException {
+        if (conn == null) {
+            throw new LogFailedException("Redolog connection closed");
         }
-        return size;
+
+        try {
+            return DbDistibutedRedolog.getAllOpSize(conn);
+        } catch (ServiceException e) {
+            throw new LogFailedException(String.format(FAILED_METHOD_TEMPLATE, "getSize"), e);
+        }
     }
 
     @Override
@@ -121,7 +115,7 @@ public class DbLogWriter implements LogWriter {
     }
 
     @Override
-    public boolean isEmpty() throws Exception {
+    public boolean isEmpty() throws LogFailedException {
         return getSize() == 0;
     }
 
@@ -146,7 +140,7 @@ public class DbLogWriter implements LogWriter {
     }
 
     @Override
-    public File rollover(LinkedHashMap activeOps) throws IOException {
+    public File rollover(LinkedHashMap activeOps) throws LogFailedException {
         return null;
     }
 
@@ -155,87 +149,21 @@ public class DbLogWriter implements LogWriter {
         return 0;
     }
 
-    public boolean isOpen() throws SQLException {
-        return (conn != null && !conn.getConnection().isClosed());
-    }
-
-
-/*
-========================================================================================================================
-====================================   TEMP CLASSES, METHODS AND FIELDS   ==============================================
-========================   ALL BELOW WAS BORROWED FROM FileLogWriter and FileHeader   ==================================
-========================================================================================================================
-*/
-//********************************************************************************************************************** FIELDS SECTION
-    private CommitNotifyQueue mCommitNotifyQueue;
-//********************************************************************************************************************** METHODS SECTION
-//********************************************************************************************************************** INNER CLASSES SECTION
-
-    // Commit callback handling
-    private static class Notif {
-        private RedoCommitCallback mCallback;
-        private CommitId mCommitId;
-
-        public Notif(RedoCommitCallback callback, CommitId cid) {
-            mCallback = callback;
-            mCommitId = cid;
-        }
-
-        public RedoCommitCallback getCallback() {
-            return mCallback;
-        }
-
-        public CommitId getCommitId() {
-            return mCommitId;
+    public boolean isOpen() throws LogFailedException {
+        try {
+            return (conn != null && !conn.getConnection().isClosed());
+        } catch (SQLException e) {
+            throw new LogFailedException(String.format(FAILED_METHOD_TEMPLATE, "isOpen"), e);
         }
     }
 
-    private class CommitNotifyQueue {
-        private Notif[] mQueue = new Notif[100];
-        private int mHead;  // points to first entry
-        private int mTail;  // points to just after last entry (first empty slot)
-        private boolean mFull;
-
-        public CommitNotifyQueue(int size) {
-            mQueue = new Notif[size];
-            mHead = mTail = 0;
-            mFull = false;
+    public class LogFailedException extends IOException {
+        public LogFailedException(final String message) {
+            super(message);
         }
 
-        public synchronized void push(Notif notif) throws IOException {
-            if (notif != null) {
-                if (mFull) flush();  // queue is full
-                assert (!mFull);
-                mQueue[mTail] = notif;
-                mTail++;
-                mTail %= mQueue.length;
-                mFull = mTail == mHead;
-            }
-        }
-
-        private synchronized Notif pop() {
-            if (mHead == mTail && !mFull) return null;  // queue is empty
-            Notif n = mQueue[mHead];
-            mQueue[mHead] = null;  // help with GC
-            mHead++;
-            mHead %= mQueue.length;
-            mFull = false;
-            return n;
-        }
-
-        public synchronized void flush() throws IOException {
-            Notif notif;
-            while ((notif = pop()) != null) {
-                RedoCommitCallback cb = notif.getCallback();
-                assert (cb != null);
-                try {
-                    cb.callback(notif.getCommitId());
-                } catch (OutOfMemoryError e) {
-                    Zimbra.halt("out of memory", e);
-                } catch (Throwable t) {
-                    ZimbraLog.misc.error("Error while making commit callback", t);
-                }
-            }
+        public LogFailedException(final String message, final Throwable cause) {
+            super(message, cause);
         }
     }
 
@@ -292,6 +220,7 @@ public class DbLogWriter implements LogWriter {
             InputStream data = new ByteArrayInputStream(serialize());
 
             try {
+                DbDistibutedRedolog.deleteHeaderOp(conn);
                 DbDistibutedRedolog.logOp(conn, OpType.HEADER, data);
                 conn.commit();
             } finally {
@@ -525,6 +454,7 @@ public class DbLogWriter implements LogWriter {
             }
         }
 
+        @Override
         public String toString() {
             SimpleDateFormat fmt = new SimpleDateFormat(DATE_FORMAT);
             StringBuilder sb = new StringBuilder(100);

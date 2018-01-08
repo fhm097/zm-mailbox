@@ -258,7 +258,7 @@ public class RedoLogManager {
             mLogWriter.open();
             mRolloverMgr.initSequence(mLogWriter.getSequence());
             mInitialLogSize = mLogWriter.getSize();
-        } catch (Exception e) {
+        } catch (IOException e) {
             ZimbraLog.redolog.fatal("Unable to open redo log");
             signalFatalError(e);
         }
@@ -425,7 +425,7 @@ public class RedoLogManager {
         }
     }
 
-    public void flush() throws Exception {
+    public void flush() throws IOException {
         if (mEnabled)
             mLogWriter.flush();
     }
@@ -567,7 +567,7 @@ public class RedoLogManager {
                     result = age >= mLogRolloverMinAgeMillis;
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             ZimbraLog.redolog.fatal("Unable to get redo log size");
             signalFatalError(e);
         }
@@ -626,8 +626,8 @@ public class RedoLogManager {
                 long elapsed = System.currentTimeMillis() - start;
                 ZimbraLog.redolog.info("Redo log rollover took " + elapsed + "ms");
             }
-        } catch (Exception e) {
-            ZimbraLog.redolog.error("Exception during redo log rollover");
+        } catch (IOException e) {
+            ZimbraLog.redolog.error("IOException during redo log rollover");
             signalFatalError(e);
         } finally {
             writeLock.unlock();

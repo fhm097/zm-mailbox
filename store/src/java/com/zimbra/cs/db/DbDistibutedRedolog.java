@@ -40,30 +40,10 @@ public final class DbDistibutedRedolog {
             stmt.setBinaryStream(2, op);
             stmt.executeUpdate();
         } catch (SQLException e) {
-            throw ServiceException.FAILURE("Log Redo Op ", e);
+            throw ServiceException.FAILURE("Log Redo Op", e);
         } finally {
             DbPool.closeStatement(stmt);
         }
-    }
-
-    // TODO this method is not tested jet and maybe will not be needed
-    public static Map<Long, InputStream> getAllOp(DbConnection conn) throws ServiceException {
-        PreparedStatement stmt = null;
-        ResultSet rs = null;
-        Map<Long, InputStream> allOp = new HashMap<>();
-        try {
-            stmt = conn.prepareStatement("SELECT * FROM distributed_redolog");
-            rs = stmt.executeQuery();
-            while (rs.next()) {
-                allOp.put(rs.getLong("opOrder"), rs.getBinaryStream("op"));
-            }
-        } catch (SQLException e) {
-            throw ServiceException.FAILURE("Getting All Redo Op ", e);
-        } finally {
-            DbPool.closeResults(rs);
-            DbPool.closeStatement(stmt);
-        }
-        return allOp;
     }
 
     public static long getAllOpSize(DbConnection conn) throws ServiceException {
@@ -77,7 +57,7 @@ public final class DbDistibutedRedolog {
                 size = rs.getLong(1);
             }
         } catch (SQLException e) {
-            throw ServiceException.FAILURE("Getting All Redo Op ", e);
+            throw ServiceException.FAILURE("Getting All Redo Op", e);
         } finally {
             DbPool.closeResults(rs);
             DbPool.closeStatement(stmt);
@@ -97,11 +77,36 @@ public final class DbDistibutedRedolog {
                 header = rs.getBinaryStream(1);
             }
         } catch (SQLException e) {
-            throw ServiceException.FAILURE("Getting Header Redo Op ", e);
+            throw ServiceException.FAILURE("Getting Header Redo Op", e);
         } finally {
             DbPool.closeResults(rs);
             DbPool.closeStatement(stmt);
         }
         return header;
+    }
+
+    public static void deleteHeaderOp(DbConnection conn) throws ServiceException {
+        PreparedStatement stmt = null;
+        try {
+            stmt = conn.prepareStatement("DELETE FROM distributed_redolog WHERE opType = ?");
+            stmt.setString(1, OpType.HEADER.getDbValue());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            throw ServiceException.FAILURE("Clearing Redolog Operations", e);
+        } finally {
+            DbPool.closeStatement(stmt);
+        }
+    }
+
+    public static void clearRedolog(DbConnection conn) throws ServiceException {
+        PreparedStatement stmt = null;
+        try {
+            stmt = conn.prepareStatement("DELETE FROM distributed_redolog");
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            throw ServiceException.FAILURE("Clearing Redolog Operations", e);
+        } finally {
+            DbPool.closeStatement(stmt);
+        }
     }
 }

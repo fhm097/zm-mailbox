@@ -3,7 +3,9 @@ package com.zimbra.cs.redolog.logger;
 import static org.junit.Assert.*;
 
 import com.zimbra.common.service.ServiceException;
+import com.zimbra.cs.db.DbDistibutedRedolog;
 import com.zimbra.cs.db.DbDistibutedRedolog.OpType;
+import com.zimbra.cs.redolog.logger.DbLogWriter.LogHeader;
 import com.zimbra.cs.db.DbPool;
 import com.zimbra.cs.mailbox.MailboxOperation;
 import com.zimbra.cs.mailbox.MailboxTestUtil;
@@ -11,14 +13,13 @@ import com.zimbra.cs.redolog.RedoLogManager;
 import com.zimbra.cs.redolog.op.RedoableOp;
 import junit.framework.Assert;
 import org.easymock.EasyMock;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
 
 
 public class DbLogWriterTest {
@@ -27,7 +28,8 @@ public class DbLogWriterTest {
 
     private RedoLogManager mockRedoLogManager;
     private DbLogWriter logWriter;
-    private DbLogWriter.LogHeader hdr;
+    private LogHeader hdr;
+    private DbPool.DbConnection conn;
 
     @BeforeClass
     public static void init() throws Exception {
@@ -38,6 +40,7 @@ public class DbLogWriterTest {
     public void setUp() throws Exception {
         mockRedoLogManager = EasyMock.createNiceMock(RedoLogManager.class);
         logWriter = new DbLogWriter(mockRedoLogManager);
+        conn = DbPool.getConnection();
     }
 
     @Test
@@ -51,7 +54,7 @@ public class DbLogWriterTest {
                 .createMock();
 
         logWriter.log(op, new ByteArrayInputStream("some bytes".getBytes()), false);
-        Assert.assertEquals("file size incorrect.",10, logWriter.getSize());
+        Assert.assertEquals("file size incorrect.", 10, logWriter.getSize());
 
         logWriter.close();
         Assert.assertTrue("Connection was closed successfully", !logWriter.isOpen());
@@ -61,7 +64,7 @@ public class DbLogWriterTest {
         Assert.assertEquals("file size incorrect.", 10, logWriter.getSize());
 
         logWriter.log(op, new ByteArrayInputStream("some bytes".getBytes()), false);
-        Assert.assertEquals("file size incorrect.",20, logWriter.getSize());
+        Assert.assertEquals("file size incorrect.", 20, logWriter.getSize());
         logWriter.close();
     }
 
@@ -74,13 +77,11 @@ public class DbLogWriterTest {
 ========================================================================================================================
 ============================================   TEST THE HEADER   =======================================================
 ========================================================================================================================
-========================================================================================================================
 */
     @Test
     public void initializingHeader() throws Exception {
-        DbLogWriter.LogHeader anExistingHdr;
-        hdr = new DbLogWriter.LogHeader();
-        DbPool.DbConnection conn = DbPool.getConnection();
+        LogHeader anExistingHdr;
+        hdr = new LogHeader();
 
         Assert.assertFalse("file is open", hdr.getOpen());
         Assert.assertEquals("file size is not 0", 0, hdr.getFileSize());
@@ -93,14 +94,85 @@ public class DbLogWriterTest {
         hdr.init(conn);
 
         // reading an existing header
-        anExistingHdr = new DbLogWriter.LogHeader("should be overwritten");
+        anExistingHdr = new LogHeader("should be overwritten");
         anExistingHdr.read(conn);
         Assert.assertEquals("header from file should match serialized data", hdr, anExistingHdr);
 
         // init an existing header
-        anExistingHdr = new DbLogWriter.LogHeader("should be overwritten");
+        anExistingHdr = new LogHeader("should be overwritten");
         anExistingHdr.init(conn);
         Assert.assertEquals("header from file should match serialized data", hdr, anExistingHdr);
     }
 
+    @Test
+    public void setAllFields() throws Exception {
+        hdr = new LogHeader("serverId");
+        hdr.setOpen(true);
+        hdr.setFileSize(1);
+        hdr.setSequence(2);
+        hdr.setFirstOpTstamp(3);
+        hdr.setLastOpTstamp(4);
+        hdr.setCreateTime(5);
+
+        Assert.assertTrue("open != true", hdr.getOpen());
+        Assert.assertEquals(1, hdr.getFileSize());
+        Assert.assertEquals(2, hdr.getSequence());
+        Assert.assertEquals("serverId", hdr.getServerId());
+        Assert.assertEquals(3, hdr.getFirstOpTstamp());
+        Assert.assertEquals(4, hdr.getLastOpTstamp());
+        Assert.assertEquals(5, hdr.getCreateTime());
+
+        hdr.init(conn);
+        LogHeader fromDB = new LogHeader("should be overwritten");
+        fromDB.init(conn);
+        Assert.assertEquals("header from file should match serialized data", hdr, fromDB);
+    }
+
+    @Test
+    public void junkEntry() throws Exception {
+        try {
+            DbDistibutedRedolog.deleteHeaderOp(conn);
+            DbDistibutedRedolog.logOp(conn, OpType.HEADER, new ByteArrayInputStream("this is not a valid header".getBytes()));
+            conn.commit();
+            hdr = new LogHeader();
+            hdr.read(conn);
+
+            fail("Exception expected here");
+        } catch (Exception e) {
+            assertEquals("Redolog is smaller than header length of " + LogHeader.HEADER_LEN + " bytes", e.getMessage());
+        }
+    }
+
+    @Test
+    public void versionTooHigh() throws Exception {
+        hdr = new LogHeader();
+        hdr.write(conn);
+
+        // Fake up a bad version
+        final int versionLocation =
+                7 /* magic */ + 1 /* open */ + 8 /* file size */ +
+                        8 /* sequence */ + 1 /* serverid length */ + 127 /* serverid */ +
+                        8 /* firstOpTstamp */ + 8 /* lastOpTstamp */;
+
+
+        InputStream headerData = DbDistibutedRedolog.getHeaderOp(conn);
+        byte header[] = new byte[LogHeader.HEADER_LEN];
+        headerData.read(header, 0, LogHeader.HEADER_LEN);
+        header[versionLocation] = (byte) ((short)header[versionLocation] + 1);
+        DbDistibutedRedolog.clearRedolog(conn);
+        DbDistibutedRedolog.logOp(conn, OpType.HEADER, new ByteArrayInputStream(header));
+        conn.commit();
+        try {
+            hdr.read(conn);
+        } catch (IOException e) {
+            Assert.assertTrue("Version in file should be too high.", e.getMessage().contains("is higher than the highest known version"));
+            return;
+        }
+        Assert.fail("no exception thrown");
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        conn.closeQuietly();
+    }
 }
