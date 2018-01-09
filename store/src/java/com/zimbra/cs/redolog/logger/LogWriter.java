@@ -124,7 +124,7 @@ public interface LogWriter {
 	 * if open.
 	 * @return true if and only if the deletion succeeded; false otherwise
 	 */
-	public boolean delete();
+	public boolean delete() throws IOException;
 
     /**
      * Performs log rollover.

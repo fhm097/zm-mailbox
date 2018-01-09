@@ -54,6 +54,10 @@ public class DbLogWriter implements LogWriter {
 
             conn = DbPool.getConnection();
             ZimbraLog.redolog.info("fetching new DB connection");
+
+            mHeader.init(conn);
+            mFirstOpTstamp = mHeader.getFirstOpTstamp();
+            mLastOpTstamp = mHeader.getLastOpTstamp();
         } catch (Exception e) {
             new LogFailedException(String.format(FAILED_METHOD_TEMPLATE, "open"), e);
         }
@@ -62,6 +66,13 @@ public class DbLogWriter implements LogWriter {
     @Override
     public void close() throws LogFailedException {
         if (conn != null) {
+            try {
+                mHeader.setOpen(false);
+                mHeader.write(conn);
+            } catch (Exception e) {
+                ZimbraLog.redolog.error("Failed to write header at close redolog", e);
+            }
+
             DbPool.quietClose(conn);
         }
     }
@@ -73,6 +84,15 @@ public class DbLogWriter implements LogWriter {
         }
 
         try {
+            // Record first transaction in header.
+            long tstamp = op.getTimestamp();
+            mLastOpTstamp = Math.max(tstamp, mLastOpTstamp);
+            if (mFirstOpTstamp == 0) {
+                mFirstOpTstamp = tstamp;
+                mHeader.setFirstOpTstamp(mFirstOpTstamp);
+            }
+            mHeader.setLastOpTstamp(mLastOpTstamp);
+
             DbDistibutedRedolog.logOp(conn, OpType.OPERATION, data);
             conn.commit();
         } catch (ServiceException e) {
@@ -106,12 +126,12 @@ public class DbLogWriter implements LogWriter {
 
     @Override
     public long getCreateTime() {
-        return 0;
+        return mHeader.getCreateTime();
     }
 
     @Override
     public long getLastLogTime() {
-        return 0;
+        return mLastOpTstamp;
     }
 
     @Override
@@ -135,8 +155,17 @@ public class DbLogWriter implements LogWriter {
     }
 
     @Override
-    public boolean delete() {
-        return false;
+    public boolean delete() throws LogFailedException {
+        if (conn == null) {
+            throw new LogFailedException("Redolog connection closed");
+        }
+
+        try {
+            DbDistibutedRedolog.clearRedolog(conn);
+            return true;
+        } catch (ServiceException e) {
+            throw new LogFailedException(String.format(FAILED_METHOD_TEMPLATE, "delete"), e);
+        }
     }
 
     @Override

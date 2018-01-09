@@ -44,28 +44,50 @@ public class DbLogWriterTest {
     }
 
     @Test
-    public void openLogClose() throws Exception {
+    public void openCloseLog() throws Exception {
         logWriter.open();
         Assert.assertTrue("Connection is open successfully", logWriter.isOpen());
-        Assert.assertTrue("Table is empty after open the connection first time", logWriter.isEmpty());
+        Assert.assertTrue("Table has to have header in place when open the redolog first time",
+                (logWriter.getSize() == LogHeader.HEADER_LEN));
 
         RedoableOp op = EasyMock.createMockBuilder(RedoableOp.class)
                 .withConstructor(MailboxOperation.Preview)
                 .createMock();
+        op.start(System.currentTimeMillis());
+
 
         logWriter.log(op, new ByteArrayInputStream("some bytes".getBytes()), false);
-        Assert.assertEquals("file size incorrect.", 10, logWriter.getSize());
+        Assert.assertEquals("file size incorrect.", LogHeader.HEADER_LEN + 10, logWriter.getSize());
 
         logWriter.close();
         Assert.assertTrue("Connection was closed successfully", !logWriter.isOpen());
 
+        // store some fields from the current writer.
+        final long createTime = logWriter.getCreateTime();
+        long lastLogOp = logWriter.getLastLogTime();
+        Assert.assertEquals(createTime, logWriter.getCreateTime());
+
+        // restarting LogWriter
         logWriter = new DbLogWriter(mockRedoLogManager);
         logWriter.open();
-        Assert.assertEquals("file size incorrect.", 10, logWriter.getSize());
+        Assert.assertEquals("file size incorrect.", LogHeader.HEADER_LEN + 10, logWriter.getSize());
+
+        // All data is retrieved correctly
+        Assert.assertEquals(createTime, logWriter.getCreateTime());
+        Assert.assertEquals(lastLogOp, logWriter.getLastLogTime());
+
+        op = EasyMock.createMockBuilder(RedoableOp.class)
+                .withConstructor(MailboxOperation.Preview)
+                .createMock();
+        op.start(System.currentTimeMillis());
 
         logWriter.log(op, new ByteArrayInputStream("some bytes".getBytes()), false);
-        Assert.assertEquals("file size incorrect.", 20, logWriter.getSize());
+        Assert.assertEquals("file size incorrect.", LogHeader.HEADER_LEN + 20, logWriter.getSize());
         logWriter.close();
+
+        // Create time is fixed along redolog life but lastLogTime has to be greater than last op timestamp
+        Assert.assertEquals(createTime, logWriter.getCreateTime());
+        Assert.assertTrue(lastLogOp < logWriter.getLastLogTime());
     }
 
     @Test(expected = Exception.class)

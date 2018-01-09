@@ -110,7 +110,7 @@ public class RedoLogManager {
 
     // the actual logger
     private LogWriter mLogWriter;
-    private boolean useDbAsLogStorage = false;
+    private boolean useDbAsLogStorage = true;
 
     private Object mStatGuard;
     private long mElapsed;
