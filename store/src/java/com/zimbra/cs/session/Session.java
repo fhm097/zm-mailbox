@@ -64,7 +64,8 @@ public abstract class Session {
         ADMIN(3, LC.zimbra_session_limit_admin.intValue()),
         WIKI(4, 0),
         SYNCLISTENER(5, LC.zimbra_session_limit_sync.intValue()),
-        WAITSET(6, 0)
+        WAITSET(6, 0),
+        DIST(7, 0),
         ;
 
         Type(int index, int maxPerAccount) {
