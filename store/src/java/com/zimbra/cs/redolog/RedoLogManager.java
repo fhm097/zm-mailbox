@@ -110,6 +110,8 @@ public class RedoLogManager {
 
     // the actual logger
     private LogWriter mLogWriter;
+
+    // if useDbAsLogStorage eq true then will be used a DbLogWriter, FileLogWriter will be used otherwise
     private boolean useDbAsLogStorage = true;
 
     private Object mStatGuard;
@@ -276,8 +278,10 @@ public class RedoLogManager {
                 }
             }
 
-            // Force rollover to clear the current log file.
-            forceRollover();
+            // Force rollover to clear the current log file, only when use FileLogWriter mechanism
+            if (getLogWriter() instanceof FileLogWriter) {
+                forceRollover();
+            }
 
             // Start a new thread to run recovery on the remaining ops.
             // Recovery of these ops will occur in parallel with new client
@@ -369,7 +373,10 @@ public class RedoLogManager {
         }
 
         try {
-            forceRollover();
+            // rollover only is needed when use FileLogWriter mechanism
+            if (getLogWriter() instanceof FileLogWriter) {
+                forceRollover();
+            }
             mLogWriter.flush();
             mLogWriter.close();
         } catch (Exception e) {
@@ -395,7 +402,8 @@ public class RedoLogManager {
 
         logOnly(op, synchronous);
 
-        if (isRolloverNeeded(false))
+        //rollover is needed only when use FileLogWriter mechanism
+        if (isRolloverNeeded(false) && (getLogWriter() instanceof FileLogWriter))
             rollover(false, false);
     }
 

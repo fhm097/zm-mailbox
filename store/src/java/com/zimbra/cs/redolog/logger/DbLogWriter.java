@@ -168,6 +168,11 @@ public class DbLogWriter implements LogWriter {
         }
     }
 
+    /*
+    * The rollover mechanism is only needed when we have to write redo operations directly into a file. This mechanism
+    * is used to clear this file when it hit the maximum file size, But in DB context this process is no longer needed.
+    * You can check this functionality in FileLogWriter class
+    * */
     @Override
     public File rollover(LinkedHashMap activeOps) throws LogFailedException {
         return null;
