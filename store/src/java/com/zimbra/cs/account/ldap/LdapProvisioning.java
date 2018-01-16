@@ -988,6 +988,18 @@ public class LdapProvisioning extends LdapProv implements CacheAwareProvisioning
 
     @Override
     public Account get(AccountBy keyType, String key) throws ServiceException {
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> key" + key);
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> account Size" + accountCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> all account info" + accountCache.toString());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + cosCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + domainCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + groupCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + serverCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + alwaysOnClusterCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + ucServiceCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + shareLocatorCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + xmppComponentCache.getSize());
+        ZimbraLog.soap.info(">>>>>>>>>>>>>>>>>> " + zimletCache.getSize());
         return get(keyType, key, false);
     }
 

@@ -23,17 +23,21 @@
  */
 package com.zimbra.cs.account.cache;
 
+import java.util.HashMap;
 import java.util.Map;
 
+import com.zimbra.common.service.ServiceException;
 import com.zimbra.common.util.MapUtil;
 import com.zimbra.common.stats.Counter;
 import com.zimbra.common.stats.HitRateCounter;
 import com.zimbra.cs.account.Account;
 import com.zimbra.cs.account.Provisioning;
+import com.zimbra.common.util.ZimbraLog;
 
 public class AccountCache implements IAccountCache {
     
     private Map<String, CacheEntry> mNameCache;
+    private Map<String, Account> account = new HashMap<>();
     private Map<String, CacheEntry> mIdCache;
     private Map<String, CacheEntry> mAliasCache;
     private Map<String, CacheEntry> mForeignPrincipalCache;
@@ -97,6 +101,7 @@ public class AccountCache implements IAccountCache {
     public synchronized void put(Account entry) {
         if (entry != null) {
             CacheEntry cacheEntry = new CacheEntry(entry, mRefreshTTL);
+            account.put(entry.getName(), entry);
             mNameCache.put(entry.getName(), cacheEntry);
             mIdCache.put(entry.getId(), cacheEntry);
             
@@ -166,6 +171,16 @@ public class AccountCache implements IAccountCache {
     @Override
     public synchronized double getHitRate() {
     	 return mHitRate.getAverage();
+    }
+
+    @Override
+    public String toString() {
+        account.forEach((accountName, account) -> {
+            try {
+                ZimbraLog.soap.info("  * " + account.getAttrs());
+            } catch (RuntimeException e) { }
+        });
+        return null;
     }
 }
 
